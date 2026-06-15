@@ -47,9 +47,24 @@ router.message.filter(ModuleEnabled("shop"))
 # --------------------------------------------------------------------------- #
 
 
+def _available_methods(tenant: TenantInfo) -> list[str]:
+    """Доступные способы оплаты у тенанта.
+
+    Приоритет — список ``settings.shop.methods`` (напр. ["stars", "fiat"]).
+    Для обратной совместимости — одиночное поле ``settings.shop.payment``.
+    """
+    cfg = tenant.module_settings("shop")
+    methods = cfg.get("methods")
+    if methods:
+        filtered = [m for m in methods if m in (PAY_STARS, PAY_FIAT)]
+        if filtered:
+            return filtered
+    return [cfg.get("payment", PAY_FIAT)]
+
+
 def _pay_mode(tenant: TenantInfo) -> str:
-    """fiat (карта) или stars (⭐). По умолчанию — fiat."""
-    return tenant.module_settings("shop").get("payment", PAY_FIAT)
+    """Способ оплаты для отображения цен (первый из доступных)."""
+    return _available_methods(tenant)[0]
 
 
 def _stars_rate(tenant: TenantInfo) -> float:
@@ -271,7 +286,48 @@ async def checkout(
         await query.answer("Корзина пуста", show_alert=True)
         return
 
-    mode = _pay_mode(tenant)
+    methods = _available_methods(tenant)
+    if len(methods) > 1:
+        # клиент сам выбирает способ оплаты
+        builder = InlineKeyboardBuilder()
+        if PAY_STARS in methods:
+            builder.button(text="⭐ Оплатить звёздами", callback_data="shop:pay:stars")
+        if PAY_FIAT in methods:
+            builder.button(text="💳 Оплатить картой", callback_data="shop:pay:fiat")
+        builder.button(text="⬅️ В корзину", callback_data="shop:cart")
+        builder.adjust(1)
+        await _edit(query, "Выберите способ оплаты:", builder)
+        return
+
+    await _create_order_and_invoice(query, tenant, user, session, methods[0])
+
+
+@router.callback_query(F.data.startswith("shop:pay:"))
+async def choose_payment(
+    query: CallbackQuery,
+    tenant: TenantInfo,
+    user: BotUser,
+    session: AsyncSession,
+) -> None:
+    mode = PAY_STARS if query.data.endswith(":stars") else PAY_FIAT
+    if mode not in _available_methods(tenant):
+        await query.answer("Способ оплаты недоступен", show_alert=True)
+        return
+    await _create_order_and_invoice(query, tenant, user, session, mode)
+
+
+async def _create_order_and_invoice(
+    query: CallbackQuery,
+    tenant: TenantInfo,
+    user: BotUser,
+    session: AsyncSession,
+    mode: str,
+) -> None:
+    items = await _cart_items(session, user.id)
+    if not items:
+        await query.answer("Корзина пуста", show_alert=True)
+        return
+
     rate = _stars_rate(tenant)
 
     # считаем цену каждой позиции в выбранной валюте (рубли или звёзды)
