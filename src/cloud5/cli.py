@@ -70,6 +70,25 @@ async def _enable_module(tenant_id: int, module: str) -> None:
         print(f"✅ Модуль {module} включён для #{tenant_id}")
 
 
+async def _add_admin(tenant_id: int, telegram_id: int) -> None:
+    async with session_scope() as session:
+        tenant = await session.get(Tenant, tenant_id)
+        if tenant is None:
+            print("Тенант не найден")
+            return
+        settings = dict(tenant.settings or {})
+        admin_cfg = dict(settings.get("admin", {}))
+        ids = set(admin_cfg.get("ids", []))
+        ids.add(telegram_id)
+        admin_cfg["ids"] = sorted(ids)
+        settings["admin"] = admin_cfg
+        tenant.settings = settings
+        print(
+            f"✅ Админ {telegram_id} назначен для #{tenant_id}. "
+            "В боте доступна команда /admin"
+        )
+
+
 # Демо-наполнение для показа клиентам
 DEMO_CATEGORIES = {
     "☕️ Кофе": [
@@ -170,6 +189,10 @@ def main() -> None:
     p_seed = sub.add_parser("seed", help="заполнить демо-данными для показа")
     p_seed.add_argument("--tenant-id", type=int, required=True)
 
+    p_adm = sub.add_parser("add-admin", help="назначить админа бота (для /admin)")
+    p_adm.add_argument("--tenant-id", type=int, required=True)
+    p_adm.add_argument("--telegram-id", type=int, required=True)
+
     args = parser.parse_args()
     init_engine()
 
@@ -183,6 +206,8 @@ def main() -> None:
         asyncio.run(_enable_module(args.tenant_id, args.module))
     elif args.cmd == "seed":
         asyncio.run(_seed(args.tenant_id))
+    elif args.cmd == "add-admin":
+        asyncio.run(_add_admin(args.tenant_id, args.telegram_id))
 
 
 if __name__ == "__main__":
