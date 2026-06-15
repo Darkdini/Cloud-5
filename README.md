@@ -94,6 +94,30 @@ python -m cloud5.cli add-tenant \
   --modules ai_assistant,shop
 ```
 
+## Оплата в магазине
+
+Модуль `shop` поддерживает два способа оплаты (настраивается у тенанта в
+`settings.shop.payment`):
+
+- **`stars`** — Telegram Stars (⭐). Нативно, без банка и провайдера; владелец
+  выводит звёзды в TON через Fragment. Цена считается из рублёвой цены товара по
+  курсу `settings.shop.stars_rate` (₽ за звезду), либо берётся явная `price_xtr`.
+- **`fiat`** (по умолчанию) — карта через платёжного провайдера
+  (`settings.shop.provider_token`, напр. ЮKassa). Без токена заказ принимается, и
+  с клиентом связывается менеджер.
+
+Включить оплату звёздами для бота через админ-API:
+
+```bash
+curl -X PATCH localhost:8000/tenants/1 \
+  -H "X-Admin-Token: $ADMIN_API_TOKEN" -H "Content-Type: application/json" \
+  -d '{"settings": {"shop": {"payment": "stars", "stars_rate": 2.0}}}'
+```
+
+> ⚠️ На уже развёрнутой PostgreSQL-базе добавьте колонку `products.price_xtr`
+> миграцией (`alembic revision --autogenerate -m "stars"` → `alembic upgrade head`).
+> На SQLite/`init-db` колонка создаётся автоматически.
+
 ## Структура
 
 ```

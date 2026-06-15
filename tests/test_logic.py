@@ -8,7 +8,13 @@ from cloud5.core.menu import main_menu
 from cloud5.core.registry import TenantInfo
 from cloud5.modules.booking import _generate_slots
 from cloud5.services.ai import build_system_prompt
-from cloud5.services.payments import format_price
+from cloud5.services.payments import (
+    PAY_FIAT,
+    PAY_STARS,
+    format_price,
+    product_amount,
+    to_stars,
+)
 
 
 def make_tenant(**kwargs) -> TenantInfo:
@@ -32,6 +38,37 @@ def test_format_price_rub():
 
 def test_format_price_usd():
     assert format_price(100000, "USD") == "1 000 $"
+
+
+def test_format_price_stars():
+    assert format_price(150, "XTR") == "⭐ 150"
+
+
+def test_to_stars_rounds_up_and_min_one():
+    # 300 ₽ при курсе 2 ₽/звезда = 150 звёзд
+    assert to_stars(30000, 2.0) == 150
+    # дробное — округляем вверх
+    assert to_stars(30050, 2.0) == 151
+    # очень дёшево — минимум 1 звезда
+    assert to_stars(1, 2.0) == 1
+
+
+def test_product_amount_fiat_vs_stars():
+    # фиат: возвращает копейки и RUB
+    assert product_amount(price_minor=30000, price_xtr=None, mode=PAY_FIAT) == (
+        30000,
+        "RUB",
+    )
+    # звёзды без явной цены: конвертация из рублей
+    amount, cur = product_amount(
+        price_minor=30000, price_xtr=None, mode=PAY_STARS, stars_rate=2.0
+    )
+    assert cur == "XTR" and amount == 150
+    # звёзды с явной ценой: берётся price_xtr
+    assert product_amount(price_minor=30000, price_xtr=99, mode=PAY_STARS) == (
+        99,
+        "XTR",
+    )
 
 
 def test_tenant_has_module():

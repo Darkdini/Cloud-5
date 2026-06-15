@@ -173,6 +173,8 @@ class Product(Base, PKMixin, TimestampMixin):
     # Цена в минимальных единицах валюты (копейки/центы)
     price: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     currency: Mapped[str] = mapped_column(String(3), default="RUB", nullable=False)
+    # Явная цена в Telegram Stars (⭐). Если не задана — считается из price по курсу.
+    price_xtr: Mapped[int | None] = mapped_column(Integer)
     photo_url: Mapped[str | None] = mapped_column(String(1024))
     stock: Mapped[int | None] = mapped_column(Integer)  # None = безлимит
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
