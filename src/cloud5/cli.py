@@ -32,6 +32,37 @@ async def _init_db() -> None:
     print("✅ Таблицы созданы")
 
 
+async def _quickstart() -> None:
+    """Всё за один шаг: таблицы + тестовый бот + демо-данные."""
+    from cloud5.config import settings
+
+    await _init_db()
+    async with session_scope() as session:
+        existing = (
+            await session.execute(
+                select(Tenant).where(Tenant.bot_token == settings.default_bot_token)
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            mods = [m.strip() for m in settings.default_modules.split(",") if m.strip()]
+            tenant = Tenant(
+                title=settings.default_bot_title,
+                bot_token=settings.default_bot_token,
+                enabled_modules=mods,
+                settings={},
+            )
+            session.add(tenant)
+            await session.flush()
+            tenant_id = tenant.id
+            print(f"✅ Бот #{tenant_id} «{settings.default_bot_title}» создан.")
+        else:
+            tenant_id = existing.id
+            print(f"ℹ️  Бот #{tenant_id} уже существует, пропускаю создание.")
+
+    await _seed(tenant_id)
+    print("\n🎉 Готово! Запуск:  python -m cloud5.bot.main")
+
+
 async def _add_tenant(title: str, token: str, modules: str, username: str | None) -> None:
     mod_list = [m.strip() for m in modules.split(",") if m.strip()]
     async with session_scope() as session:
@@ -173,6 +204,7 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init-db", help="создать таблицы")
+    sub.add_parser("quickstart", help="всё за раз: БД + тестовый бот + демо-данные")
 
     p_add = sub.add_parser("add-tenant", help="добавить бота клиента")
     p_add.add_argument("--title", required=True)
@@ -198,6 +230,8 @@ def main() -> None:
 
     if args.cmd == "init-db":
         asyncio.run(_init_db())
+    elif args.cmd == "quickstart":
+        asyncio.run(_quickstart())
     elif args.cmd == "add-tenant":
         asyncio.run(_add_tenant(args.title, args.token, args.modules, args.username))
     elif args.cmd == "list-tenants":

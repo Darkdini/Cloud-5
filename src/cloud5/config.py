@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     ai_model: str = "claude-sonnet-4-6"
 
+    # Тестовый бот по умолчанию (для команды quickstart).
+    # ВНИМАНИЕ: токен виден в репозитории — после тестов отзовите его у @BotFather.
+    default_bot_token: str = "8753886936:AAHG9I2XX3UemhkO0BnmsMKUerw54ZHiz3w"
+    default_bot_title: str = "Мой бизнес"
+    default_modules: str = "shop,booking,support"
+
     # Режим запуска ботов
     bot_mode: str = "polling"  # polling | webhook
     webhook_base_url: str = ""
