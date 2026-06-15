@@ -74,7 +74,7 @@ def _home_kb() -> InlineKeyboardBuilder:
     b.button(text="💳 Оплата", callback_data="adm:pay")
     b.button(text="✍️ Приветствие", callback_data="adm:greeting")
     b.button(text="📊 Статистика", callback_data="adm:stats")
-    b.adjust(2)
+    b.adjust(1)
     return b
 
 
