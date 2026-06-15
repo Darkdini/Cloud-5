@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from cloud5.config import settings
 from cloud5.core.registry import TenantInfo
 from cloud5.db.models import Tenant
 
@@ -30,5 +31,7 @@ async def patch_module_settings(
 
 
 def is_admin(tenant: TenantInfo, telegram_id: int) -> bool:
+    if telegram_id in settings.admin_ids_list:
+        return True  # глобальный админ
     ids = (tenant.settings.get("admin", {}) or {}).get("ids", [])
     return telegram_id in ids

@@ -34,6 +34,19 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     default_locale: str = "ru"
 
+    # Глобальные админы (через запятую). Имеют доступ к /admin во всех ботах
+    # и автоматически добавляются новым тенантам.
+    default_admin_ids: str = "7164355388"
+
+    @property
+    def admin_ids_list(self) -> list[int]:
+        out: list[int] = []
+        for part in self.default_admin_ids.split(","):
+            part = part.strip()
+            if part.isdigit():
+                out.append(int(part))
+        return out
+
     @property
     def sync_database_url(self) -> str:
         """URL для Alembic (синхронный драйвер)."""
