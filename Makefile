@@ -1,4 +1,4 @@
-.PHONY: install run api migrate revision lint test fmt up down
+.PHONY: install run api migrate seed revision lint test fmt up down
 
 install:
 	pip install -e ".[dev]"
@@ -11,6 +11,9 @@ api:
 
 migrate:
 	alembic upgrade head
+
+seed:
+	python -m cloud5.cli seed --tenant-id $(or $(t),1)
 
 revision:
 	alembic revision --autogenerate -m "$(m)"
