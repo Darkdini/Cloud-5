@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, func
+from sqlalchemy import DateTime, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from cloud5.db.types import BigIntPK
 
 
 class Base(DeclarativeBase):
@@ -29,4 +31,4 @@ class TimestampMixin:
 class PKMixin:
     """Числовой первичный ключ."""
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigIntPK, primary_key=True, autoincrement=True)

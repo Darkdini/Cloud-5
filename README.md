@@ -51,6 +51,8 @@
 
 ## Быстрый старт
 
+### Вариант A — сервер (PostgreSQL + Redis)
+
 ```bash
 cp .env.example .env          # впишите ключи
 docker compose up -d db redis # поднять БД и Redis
@@ -63,10 +65,25 @@ make api                      # (опц.) запустить админ-API
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[postgres,dev]"
 alembic upgrade head
 python -m cloud5.bot.main
 ```
+
+### Вариант B — без сервера (SQLite, можно прямо на телефоне)
+
+PostgreSQL и Redis не нужны — база лежит в одном файле.
+
+```bash
+pip install -e .
+cp .env.termux.example .env
+python -m cloud5.cli init-db
+python -m cloud5.cli add-tenant --title "Мой бизнес" --token 123:ABC \
+  --modules ai_assistant,shop,booking,support
+python -m cloud5.bot.main
+```
+
+📱 Полная инструкция для Android/Termux: [docs/TERMUX.md](docs/TERMUX.md)
 
 ## Добавить нового бота клиента
 

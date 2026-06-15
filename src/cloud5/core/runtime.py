@@ -19,11 +19,15 @@ log = get_logger("runtime")
 
 
 def build_dispatcher() -> Dispatcher:
-    try:
-        storage = RedisStorage.from_url(settings.redis_url)
-    except Exception as exc:  # noqa: BLE001 — fallback на память, если Redis недоступен
-        log.warning("redis_unavailable_use_memory", error=str(exc))
-        storage = MemoryStorage()
+    # Пустой REDIS_URL → работаем на памяти (удобно для телефона/Termux)
+    if not settings.redis_url:
+        storage: RedisStorage | MemoryStorage = MemoryStorage()
+    else:
+        try:
+            storage = RedisStorage.from_url(settings.redis_url)
+        except Exception as exc:  # noqa: BLE001 — fallback на память
+            log.warning("redis_unavailable_use_memory", error=str(exc))
+            storage = MemoryStorage()
 
     dp = Dispatcher(storage=storage)
     # outer-middleware: после встроенного UserContextMiddleware (event_from_user готов)

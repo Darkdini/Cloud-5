@@ -21,10 +21,10 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cloud5.db.base import Base, PKMixin, TimestampMixin
+from cloud5.db.types import JSONType
 
 # ---------------------------------------------------------------------------
 # Тенант (бот клиента)
@@ -44,10 +44,10 @@ class Tenant(Base, PKMixin, TimestampMixin):
 
     # Список включённых модулей, напр. ["ai_assistant", "shop"]
     enabled_modules: Mapped[list[str]] = mapped_column(
-        JSONB, default=list, nullable=False
+        JSONType, default=list, nullable=False
     )
     # Произвольные настройки модулей: {"ai_assistant": {...}, "shop": {...}}
-    settings: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    settings: Mapped[dict] = mapped_column(JSONType, default=dict, nullable=False)
 
     users: Mapped[list[BotUser]] = relationship(
         back_populates="tenant", cascade="all, delete-orphan"
@@ -85,7 +85,7 @@ class BotUser(Base, PKMixin, TimestampMixin):
     locale: Mapped[str | None] = mapped_column(String(8))
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    attributes: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    attributes: Mapped[dict] = mapped_column(JSONType, default=dict, nullable=False)
 
     tenant: Mapped[Tenant] = relationship(back_populates="users")
 
@@ -227,7 +227,7 @@ class Order(Base, PKMixin, TimestampMixin):
     currency: Mapped[str] = mapped_column(String(3), default="RUB", nullable=False)
     payment_id: Mapped[str | None] = mapped_column(String(255))
     comment: Mapped[str | None] = mapped_column(Text)
-    shipping: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    shipping: Mapped[dict] = mapped_column(JSONType, default=dict, nullable=False)
 
     items: Mapped[list[OrderItem]] = relationship(
         back_populates="order", cascade="all, delete-orphan"
@@ -370,7 +370,7 @@ class Broadcast(Base, PKMixin, TimestampMixin):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     photo_url: Mapped[str | None] = mapped_column(String(1024))
     # Простой сегмент-фильтр, напр. {"has_order": true}
-    segment: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    segment: Mapped[dict] = mapped_column(JSONType, default=dict, nullable=False)
     status: Mapped[BroadcastStatus] = mapped_column(
         Enum(BroadcastStatus), default=BroadcastStatus.draft, nullable=False
     )
