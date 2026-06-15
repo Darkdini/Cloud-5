@@ -14,9 +14,11 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # База данных и кэш
-    database_url: str = "postgresql+asyncpg://cloud5:cloud5@localhost:5432/cloud5"
-    redis_url: str = "redis://localhost:6379/0"
+    # База данных и кэш.
+    # По умолчанию — SQLite (работает на телефоне без сервера). Для продакшена
+    # переопределите DATABASE_URL/REDIS_URL в окружении (см. docker-compose.yml).
+    database_url: str = "sqlite+aiosqlite:///./cloud5.db"
+    redis_url: str = ""
 
     # ИИ
     anthropic_api_key: str = ""
