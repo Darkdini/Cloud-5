@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloud5"
+version = "0.1.0"
+description = "Cloud-5 — multi-tenant Telegram business bots platform"
+requires-python = ">=3.11"
+dependencies = [
+    "aiogram>=3.4,<4",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+    "redis>=5.0",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "anthropic>=0.40",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "structlog>=24.1",
+    "python-dateutil>=2.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.4",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "aiosqlite>=0.20",
+]
+
+[project.scripts]
+cloud5 = "cloud5.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+ignore = ["B008"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

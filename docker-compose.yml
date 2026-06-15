@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cloud5
+      POSTGRES_PASSWORD: cloud5
+      POSTGRES_DB: cloud5
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cloud5"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  bots:
+    build: .
+    command: python -m cloud5.bot.main
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cloud5:cloud5@db:5432/cloud5
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  api:
+    build: .
+    command: uvicorn cloud5.admin.api:app --host 0.0.0.0 --port 8000
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cloud5:cloud5@db:5432/cloud5
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
