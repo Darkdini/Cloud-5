@@ -23,17 +23,46 @@ MENU_ITEMS: dict[str, tuple[str, str]] = {
     "donate": ("⭐ Поддержать", "donate:start"),
 }
 
-# обратная карта: надпись reply-кнопки -> модуль
-LABEL_TO_MODULE: dict[str, str] = {text: m for m, (text, _) in MENU_ITEMS.items()}
+def _plural_star(n: int) -> str:
+    """Русское склонение слова «звезда» для числа n."""
+    tail = abs(n) % 100
+    if 11 <= tail <= 14:
+        return "звёзд"
+    d = tail % 10
+    if d == 1:
+        return "звезда"
+    if 2 <= d <= 4:
+        return "звезды"
+    return "звёзд"
+
+
+def menu_label(module: str, tenant: TenantInfo) -> str:
+    """Подпись кнопки меню. Для доната — динамическая с суммой звёзд."""
+    if module == "donate":
+        cfg = tenant.module_settings("donate")
+        try:
+            amount = max(1, int(cfg.get("amount_xtr", 2)))
+        except (TypeError, ValueError):
+            amount = 2
+        return f"⭐ Подарить {amount} {_plural_star(amount)}"
+    item = MENU_ITEMS.get(module)
+    return item[0] if item else module
+
+
+def module_for_label(tenant: TenantInfo, text: str) -> str | None:
+    """Найти модуль по тексту нажатой reply-кнопки (учёт динамических подписей)."""
+    for module in tenant.enabled_modules:
+        if module in MENU_ITEMS and menu_label(module, tenant) == text:
+            return module
+    return None
 
 
 def main_reply_menu(tenant: TenantInfo) -> ReplyKeyboardMarkup:
     """Постоянное reply-меню снизу экрана — кнопки во всю ширину."""
     builder = ReplyKeyboardBuilder()
     for module in tenant.enabled_modules:
-        item = MENU_ITEMS.get(module)
-        if item:
-            builder.add(KeyboardButton(text=item[0]))
+        if module in MENU_ITEMS:
+            builder.add(KeyboardButton(text=menu_label(module, tenant)))
     builder.adjust(1)
     return builder.as_markup(resize_keyboard=True, is_persistent=True)
 
@@ -68,7 +97,9 @@ def center_label(text: str, width: int) -> str:
 def main_menu(tenant: TenantInfo) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     items = [
-        MENU_ITEMS[m] for m in tenant.enabled_modules if m in MENU_ITEMS
+        (menu_label(m, tenant), MENU_ITEMS[m][1])
+        for m in tenant.enabled_modules
+        if m in MENU_ITEMS
     ]
     width = max((len(text) for text, _ in items), default=0)
     width = max(width, 22)

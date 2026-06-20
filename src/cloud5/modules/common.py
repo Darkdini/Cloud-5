@@ -8,13 +8,20 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cloud5.core.menu import LABEL_TO_MODULE, main_reply_menu
+from cloud5.core.menu import main_reply_menu, module_for_label
 from cloud5.core.registry import TenantInfo
 from cloud5.modules import ai_assistant, booking, donate, shop, support
 
 router = Router(name="common")
 
-MENU_LABELS = set(LABEL_TO_MODULE)
+
+async def _is_menu_label(
+    message: Message, tenant: TenantInfo | None = None
+) -> bool:
+    """Фильтр: текст совпадает с подписью одной из кнопок меню тенанта."""
+    if tenant is None or not message.text:
+        return False
+    return module_for_label(tenant, message.text) is not None
 
 
 def _greeting(tenant: TenantInfo) -> str:
@@ -39,7 +46,7 @@ async def cmd_menu(message: Message, tenant: TenantInfo, state: FSMContext) -> N
     await message.answer("Главное меню 👇", reply_markup=main_reply_menu(tenant))
 
 
-@router.message(F.text.in_(MENU_LABELS))
+@router.message(_is_menu_label)
 async def on_menu_text(
     message: Message,
     tenant: TenantInfo,
@@ -47,9 +54,8 @@ async def on_menu_text(
     state: FSMContext,
 ) -> None:
     """Нажатие кнопки reply-меню — открыть соответствующий раздел."""
-    module = LABEL_TO_MODULE.get(message.text or "")
-    if module is None or module not in tenant.enabled_modules:
-        await message.answer("Этот раздел сейчас недоступен.")
+    module = module_for_label(tenant, message.text or "")
+    if module is None:
         return
     await state.clear()
     if module == "shop":
