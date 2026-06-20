@@ -27,6 +27,10 @@ dependencies = [
 postgres = [
     "asyncpg>=0.29",
 ]
+# Генерация картинок-карточек донатеров. На телефоне: pkg install python-pillow
+images = [
+    "pillow>=10.0",
+]
 dev = [
     "ruff>=0.4",
     "pytest>=8.0",
@@ -38,6 +42,9 @@ cloud5 = "cloud5.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"cloud5.assets" = ["fonts/*.ttf"]
 
 [tool.ruff]
 line-length = 100

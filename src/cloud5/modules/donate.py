@@ -8,9 +8,10 @@
 
 from __future__ import annotations
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.types import (
+    BufferedInputFile,
     CallbackQuery,
     LabeledPrice,
     Message,
@@ -26,6 +27,7 @@ from cloud5.core.menu import back_to_menu_button
 from cloud5.core.registry import TenantInfo
 from cloud5.core.tenant_settings import patch_module_settings
 from cloud5.db.models import BotUser, Donation
+from cloud5.services.card import render_donor_card
 
 router = Router(name="donate")
 log = get_logger("donate")
@@ -124,11 +126,49 @@ async def on_donated(
     wall_chat = _cfg(tenant).get("wall_chat_id")
     if wall_chat:
         try:
-            await message.bot.send_message(wall_chat, _wall_card(user, amount))
+            await _publish_card(message.bot, wall_chat, user, amount)
             donation.posted = True
             await session.flush()
         except Exception as exc:  # noqa: BLE001
             log.warning("wall_post_failed", error=str(exc), chat=wall_chat)
+
+
+async def _publish_card(bot: Bot, chat_id: int, user: BotUser, amount: int) -> None:
+    """Опубликовать карточку донатера: картинкой, либо текстом (если нет Pillow)."""
+    image = render_donor_card(_mention(user), amount)
+    if image is not None:
+        await bot.send_photo(
+            chat_id,
+            BufferedInputFile(image, filename="donor.png"),
+            caption=f"🏅 <b>{_mention(user)}</b> поддержал на {amount} ⭐. Спасибо! ❤️",
+        )
+    else:
+        await bot.send_message(chat_id, _wall_card(user, amount))
+
+
+@router.message(Command("testdonate"), IsAdmin())
+async def test_donate(
+    message: Message, tenant: TenantInfo, user: BotUser
+) -> None:
+    """Тестовая «покупка» для админа: показывает карточку без реальной оплаты."""
+    amount = _amount(tenant)
+    # показать карточку самому админу
+    await _publish_card(message.bot, message.chat.id, user, amount)
+    wall_chat = _cfg(tenant).get("wall_chat_id")
+    if not wall_chat:
+        await message.answer(
+            "ℹ️ Это тест карточки. Группа-доска не привязана — "
+            "добавь бота в группу админом и отправь там /setwall."
+        )
+        return
+    try:
+        await _publish_card(message.bot, wall_chat, user, amount)
+        await message.answer("✅ Тест: карточка отправлена в группу-доску.")
+    except Exception as exc:  # noqa: BLE001
+        await message.answer(
+            f"⚠️ Не смог отправить в группу: {exc}\n"
+            "Проверь, что бот — администратор группы и там выполнен /setwall."
+        )
 
 
 # --------------------------------------------------------------------------- #
