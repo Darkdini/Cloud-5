@@ -120,6 +120,26 @@ async def _add_admin(tenant_id: int, telegram_id: int) -> None:
         )
 
 
+async def _setup_donate(tenant_id: int, amount: int) -> None:
+    """Превратить бота в донат-бот: одна кнопка «Подарить N звёзд»."""
+    async with session_scope() as session:
+        tenant = await session.get(Tenant, tenant_id)
+        if tenant is None:
+            print("Тенант не найден")
+            return
+        tenant.enabled_modules = ["donate"]
+        settings = dict(tenant.settings or {})
+        donate_cfg = dict(settings.get("donate", {}))
+        donate_cfg["amount_xtr"] = amount
+        settings["donate"] = donate_cfg
+        tenant.settings = settings
+        print(
+            f"✅ Бот #{tenant_id} переведён в режим доната: "
+            f"одна кнопка «Подарить {amount} ⭐».\n"
+            "Перезапусти бота и в группе-доске отправь /setwall."
+        )
+
+
 # Демо-наполнение для показа клиентам
 DEMO_CATEGORIES = {
     "☕️ Кофе": [
@@ -225,6 +245,10 @@ def main() -> None:
     p_adm.add_argument("--tenant-id", type=int, required=True)
     p_adm.add_argument("--telegram-id", type=int, required=True)
 
+    p_don = sub.add_parser("setup-donate", help="режим доната: одна кнопка «Подарить N ⭐»")
+    p_don.add_argument("--tenant-id", type=int, required=True)
+    p_don.add_argument("--amount", type=int, default=100)
+
     args = parser.parse_args()
     init_engine()
 
@@ -242,6 +266,8 @@ def main() -> None:
         asyncio.run(_seed(args.tenant_id))
     elif args.cmd == "add-admin":
         asyncio.run(_add_admin(args.tenant_id, args.telegram_id))
+    elif args.cmd == "setup-donate":
+        asyncio.run(_setup_donate(args.tenant_id, args.amount))
 
 
 if __name__ == "__main__":
