@@ -13,6 +13,7 @@ MENU_ITEMS: dict[str, tuple[str, str]] = {
     "shop": ("🛒 Магазин", "shop:catalog"),
     "booking": ("📅 Записаться", "booking:services"),
     "support": ("🎫 Поддержка", "support:new"),
+    "donate": ("⭐ Поддержать", "donate:start"),
 }
 
 

@@ -410,7 +410,7 @@ async def pre_checkout(pre_checkout_query: PreCheckoutQuery) -> None:
     await pre_checkout_query.answer(ok=True)
 
 
-@router.message(F.successful_payment)
+@router.message(F.successful_payment.func(lambda p: p.invoice_payload.startswith("order:")))
 async def on_paid(
     message: Message, tenant: TenantInfo, session: AsyncSession
 ) -> None:

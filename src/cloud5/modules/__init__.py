@@ -9,7 +9,15 @@ from __future__ import annotations
 
 from aiogram import Dispatcher
 
-from cloud5.modules import admin, ai_assistant, booking, common, shop, support
+from cloud5.modules import (
+    admin,
+    ai_assistant,
+    booking,
+    common,
+    donate,
+    shop,
+    support,
+)
 
 
 def register_modules(dp: Dispatcher) -> None:
@@ -21,3 +29,4 @@ def register_modules(dp: Dispatcher) -> None:
     dp.include_router(shop.router)
     dp.include_router(booking.router)
     dp.include_router(support.router)
+    dp.include_router(donate.router)

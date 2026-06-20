@@ -63,6 +63,10 @@ class SetGreeting(StatesGroup):
     text = State()
 
 
+class SetDonate(StatesGroup):
+    amount = State()
+
+
 # --------------------------------------------------------------------------- #
 # Главное меню
 # --------------------------------------------------------------------------- #
@@ -75,6 +79,7 @@ def _home_kb() -> InlineKeyboardBuilder:
         ("🗂 Категории", "adm:cats"),
         ("💳 Оплата", "adm:pay"),
         ("✍️ Приветствие", "adm:greeting"),
+        ("💝 Донат", "adm:donate"),
         ("📊 Статистика", "adm:stats"),
     ]
     width = max(max(len(t) for t, _ in labels), 22)
@@ -413,6 +418,56 @@ async def greeting_save(
     await message.answer(
         "✅ Приветствие обновлено.",
         reply_markup=_back_kb("adm:home").as_markup(),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Донат
+# --------------------------------------------------------------------------- #
+
+
+@router.callback_query(F.data == "adm:donate")
+async def donate_menu(query: CallbackQuery, tenant: TenantInfo) -> None:
+    cfg = tenant.module_settings("donate")
+    amount = cfg.get("amount_xtr", 2)
+    wall = cfg.get("wall_chat_id")
+    wall_txt = f"чат {wall}" if wall else "не задана"
+    b = InlineKeyboardBuilder()
+    b.button(text=f"💵 Сумма доната: {amount} ⭐", callback_data="adm:donate:amount")
+    b.button(text="⬅️ Назад", callback_data="adm:home")
+    b.adjust(1)
+    await _edit(
+        query,
+        "💝 <b>Донат</b>\n"
+        f"Сумма одной кнопки: <b>{amount} ⭐</b>\n"
+        f"Доска почёта: <b>{wall_txt}</b>\n\n"
+        "Чтобы привязать Доску почёта — добавь бота в свою группу/канал "
+        "администратором и отправь там команду <code>/setwall</code>.",
+        b,
+    )
+
+
+@router.callback_query(F.data == "adm:donate:amount")
+async def donate_amount_start(query: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(SetDonate.amount)
+    await _edit(query, "Введите сумму доната в звёздах (целое число, напр. 2):", _cancel_kb())
+
+
+@router.message(SetDonate.amount, F.text)
+async def donate_amount_save(
+    message: Message, tenant: TenantInfo, session: AsyncSession, state: FSMContext
+) -> None:
+    try:
+        amount = int(message.text.strip())
+        assert amount >= 1
+    except (ValueError, AssertionError):
+        await message.answer("Введите целое число ≥ 1, например 2:")
+        return
+    await state.clear()
+    await patch_module_settings(session, tenant, "donate", {"amount_xtr": amount})
+    await message.answer(
+        f"✅ Сумма доната: {amount} ⭐.",
+        reply_markup=_back_kb("adm:donate").as_markup(),
     )
 
 

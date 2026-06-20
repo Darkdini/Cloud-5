@@ -379,3 +379,25 @@ class Broadcast(Base, PKMixin, TimestampMixin):
     scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sent_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     failed_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+# ---------------------------------------------------------------------------
+# Донаты (Telegram Stars) и Доска почёта
+# ---------------------------------------------------------------------------
+
+
+class Donation(Base, PKMixin, TimestampMixin):
+    """Донат пользователя звёздами. Попадает в «Доску почёта»."""
+
+    __tablename__ = "donations"
+    __table_args__ = (Index("ix_donations_tenant", "tenant_id", "id"),)
+
+    tenant_id: Mapped[int] = mapped_column(
+        ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("bot_users.id", ondelete="CASCADE"), nullable=False
+    )
+    amount_xtr: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    charge_id: Mapped[str | None] = mapped_column(String(255))
+    posted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
