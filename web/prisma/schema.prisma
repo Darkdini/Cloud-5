@@ -1,0 +1,59 @@
+// Prisma schema для маркетплейса Cloud-5.
+// Локально — SQLite. Для Vercel смените provider на "postgresql" и DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         String     @default("user") // user | admin
+  createdAt    DateTime   @default(now())
+  purchases    Purchase[]
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  title    String
+  icon     String    @default("sparkles")
+  accent   String    @default("violet") // ключ из палитры неона
+  products Product[]
+}
+
+model Product {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  title       String
+  tagline     String     @default("")
+  description String
+  priceStars  Int        @default(0) // цена в звёздах Telegram
+  cover       String     @default("") // URL обложки (необязательно)
+  badge       String     @default("") // напр. "NEW", "HOT"
+  featured    Boolean    @default(false)
+  rating      Int        @default(5)
+  sales       Int        @default(0)
+  categoryId  String
+  category    Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+  purchases   Purchase[]
+}
+
+model Purchase {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
