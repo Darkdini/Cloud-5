@@ -1,9 +1,9 @@
-"""CLI управления платформой: тенанты, модули, инициализация БД.
+"""CLI управления донат-ботом.
 
 Примеры:
     python -m cloud5.cli init-db
-    python -m cloud5.cli add-tenant --title "Кофейня" --token 123:ABC \\
-        --modules ai_assistant,shop
+    python -m cloud5.cli add-tenant --title "Донат" --token 123:ABC
+    python -m cloud5.cli setup-donate --tenant-id 1 --amounts 100,200,300,400,1000
     python -m cloud5.cli list-tenants
 """
 
@@ -12,16 +12,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from cloud5.db.base import Base
-from cloud5.db.models import (
-    Category,
-    KnowledgeDoc,
-    Product,
-    Service,
-    Tenant,
-)
+from cloud5.db.models import Tenant
 from cloud5.db.session import init_engine, session_scope
 
 
@@ -32,80 +26,40 @@ async def _init_db() -> None:
     print("✅ Таблицы созданы")
 
 
-async def _quickstart() -> None:
-    """Всё за один шаг: таблицы + тестовый бот + демо-данные."""
-    from cloud5.config import settings
-
-    await _init_db()
-    async with session_scope() as session:
-        existing = (
-            await session.execute(
-                select(Tenant).where(Tenant.bot_token == settings.default_bot_token)
-            )
-        ).scalar_one_or_none()
-        if existing is None:
-            mods = [m.strip() for m in settings.default_modules.split(",") if m.strip()]
-            tenant = Tenant(
-                title=settings.default_bot_title,
-                bot_token=settings.default_bot_token,
-                enabled_modules=mods,
-                settings={},
-            )
-            session.add(tenant)
-            await session.flush()
-            tenant_id = tenant.id
-            print(f"✅ Бот #{tenant_id} «{settings.default_bot_title}» создан.")
-        else:
-            tenant_id = existing.id
-            print(f"ℹ️  Бот #{tenant_id} уже существует, пропускаю создание.")
-
-    await _seed(tenant_id)
-    print("\n🎉 Готово! Запуск:  python -m cloud5.bot.main")
-
-
-async def _add_tenant(title: str, token: str, modules: str, username: str | None) -> None:
-    mod_list = [m.strip() for m in modules.split(",") if m.strip()]
+async def _add_tenant(title: str, token: str, username: str | None) -> None:
     async with session_scope() as session:
         tenant = Tenant(
             title=title,
             bot_token=token,
             bot_username=username,
-            enabled_modules=mod_list,
-            settings={},
+            enabled_modules=["donate"],
+            settings={"donate": {"amounts": [100, 200, 300, 400, 1000], "amount_xtr": 100}},
         )
         session.add(tenant)
         await session.flush()
-        print(f"✅ Тенант #{tenant.id} «{title}» создан. Модули: {mod_list}")
+        print(
+            f"✅ Бот #{tenant.id} «{title}» создан (режим доната).\n"
+            "Запуск:  python -m cloud5.bot.main"
+        )
 
 
 async def _list_tenants() -> None:
     async with session_scope() as session:
         rows = (await session.execute(select(Tenant).order_by(Tenant.id))).scalars().all()
         if not rows:
-            print("Тенантов пока нет.")
+            print("Ботов пока нет.")
             return
         for t in rows:
             status = "🟢" if t.is_active else "⚪️"
-            print(f"{status} #{t.id} {t.title} — модули: {t.enabled_modules}")
-
-
-async def _enable_module(tenant_id: int, module: str) -> None:
-    async with session_scope() as session:
-        tenant = await session.get(Tenant, tenant_id)
-        if tenant is None:
-            print("Тенант не найден")
-            return
-        mods = set(tenant.enabled_modules or [])
-        mods.add(module)
-        tenant.enabled_modules = sorted(mods)
-        print(f"✅ Модуль {module} включён для #{tenant_id}")
+            amounts = (t.settings or {}).get("donate", {}).get("amounts", [])
+            print(f"{status} #{t.id} {t.title} — суммы: {amounts}")
 
 
 async def _add_admin(tenant_id: int, telegram_id: int) -> None:
     async with session_scope() as session:
         tenant = await session.get(Tenant, tenant_id)
         if tenant is None:
-            print("Тенант не найден")
+            print("Бот не найден")
             return
         settings = dict(tenant.settings or {})
         admin_cfg = dict(settings.get("admin", {}))
@@ -121,12 +75,12 @@ async def _add_admin(tenant_id: int, telegram_id: int) -> None:
 
 
 async def _setup_donate(tenant_id: int, amounts: list[int]) -> None:
-    """Превратить бота в донат-бот: кнопки на выбор сумм в звёздах."""
+    """Настроить кнопки сумм доната."""
     amounts = [a for a in amounts if a >= 1] or [100]
     async with session_scope() as session:
         tenant = await session.get(Tenant, tenant_id)
         if tenant is None:
-            print("Тенант не найден")
+            print("Бот не найден")
             return
         tenant.enabled_modules = ["donate"]
         settings = dict(tenant.settings or {})
@@ -137,89 +91,9 @@ async def _setup_donate(tenant_id: int, amounts: list[int]) -> None:
         tenant.settings = settings
         pretty = ", ".join(f"{a}⭐" for a in amounts)
         print(
-            f"✅ Бот #{tenant_id} переведён в режим доната.\n"
-            f"Кнопки сумм: {pretty}\n"
+            f"✅ Бот #{tenant_id}: кнопки сумм — {pretty}\n"
             "Перезапусти бота и в группе-доске отправь /setwall."
         )
-
-
-# Демо-наполнение для показа клиентам
-DEMO_CATEGORIES = {
-    "☕️ Кофе": [
-        ("Капучино", "Классический на цельном молоке", 18000),
-        ("Латте", "Нежный, с большим количеством молока", 19000),
-        ("Раф ванильный", "Сливочный раф с ванилью", 22000),
-    ],
-    "🥐 Выпечка": [
-        ("Круассан", "Хрустящий, свежая выпечка", 12000),
-        ("Чизкейк", "Нью-Йорк, кусочек", 25000),
-    ],
-}
-DEMO_SERVICES = [
-    ("Мужская стрижка", "Стрижка машинкой и ножницами", 30, 80000),
-    ("Стрижка бороды", "Моделирование и оформление", 30, 50000),
-    ("Комплекс", "Стрижка + борода", 60, 110000),
-]
-DEMO_KNOWLEDGE = (
-    "О компании",
-    "Мы работаем ежедневно с 10:00 до 21:00. Доставка по городу за 1 час, "
-    "от 1500 ₽ — бесплатно. Принимаем оплату картой и наличными. "
-    "Адрес: ул. Примерная, 1. Телефон: +7 900 000-00-00.",
-)
-
-
-async def _seed(tenant_id: int) -> None:
-    async with session_scope() as session:
-        tenant = await session.get(Tenant, tenant_id)
-        if tenant is None:
-            print("Тенант не найден")
-            return
-
-        existing = await session.scalar(
-            select(func.count())
-            .select_from(Product)
-            .where(Product.tenant_id == tenant_id)
-        )
-        if existing:
-            print(f"⚠️  У тенанта #{tenant_id} уже есть товары — пропускаю сидер.")
-            return
-
-        for cat_title, products in DEMO_CATEGORIES.items():
-            category = Category(tenant_id=tenant_id, title=cat_title)
-            session.add(category)
-            await session.flush()
-            for title, desc, price in products:
-                session.add(
-                    Product(
-                        tenant_id=tenant_id,
-                        category_id=category.id,
-                        title=title,
-                        description=desc,
-                        price=price,
-                        currency="RUB",
-                    )
-                )
-
-        for title, desc, duration, price in DEMO_SERVICES:
-            session.add(
-                Service(
-                    tenant_id=tenant_id,
-                    title=title,
-                    description=desc,
-                    duration_min=duration,
-                    price=price,
-                )
-            )
-
-        k_title, k_content = DEMO_KNOWLEDGE
-        session.add(
-            KnowledgeDoc(tenant_id=tenant_id, title=k_title, content=k_content)
-        )
-
-    print(
-        f"✅ Демо-данные добавлены для #{tenant_id}: "
-        "категории, товары, услуги и база знаний."
-    )
 
 
 def main() -> None:
@@ -227,28 +101,19 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init-db", help="создать таблицы")
-    sub.add_parser("quickstart", help="всё за раз: БД + тестовый бот + демо-данные")
 
-    p_add = sub.add_parser("add-tenant", help="добавить бота клиента")
+    p_add = sub.add_parser("add-tenant", help="добавить бота")
     p_add.add_argument("--title", required=True)
     p_add.add_argument("--token", required=True)
     p_add.add_argument("--username", default=None)
-    p_add.add_argument("--modules", default="")
 
     sub.add_parser("list-tenants", help="список ботов")
-
-    p_en = sub.add_parser("enable-module", help="включить модуль")
-    p_en.add_argument("--tenant-id", type=int, required=True)
-    p_en.add_argument("--module", required=True)
-
-    p_seed = sub.add_parser("seed", help="заполнить демо-данными для показа")
-    p_seed.add_argument("--tenant-id", type=int, required=True)
 
     p_adm = sub.add_parser("add-admin", help="назначить админа бота (для /admin)")
     p_adm.add_argument("--tenant-id", type=int, required=True)
     p_adm.add_argument("--telegram-id", type=int, required=True)
 
-    p_don = sub.add_parser("setup-donate", help="режим доната: кнопки сумм в звёздах")
+    p_don = sub.add_parser("setup-donate", help="настроить кнопки сумм доната")
     p_don.add_argument("--tenant-id", type=int, required=True)
     p_don.add_argument(
         "--amounts",
@@ -261,16 +126,10 @@ def main() -> None:
 
     if args.cmd == "init-db":
         asyncio.run(_init_db())
-    elif args.cmd == "quickstart":
-        asyncio.run(_quickstart())
     elif args.cmd == "add-tenant":
-        asyncio.run(_add_tenant(args.title, args.token, args.modules, args.username))
+        asyncio.run(_add_tenant(args.title, args.token, args.username))
     elif args.cmd == "list-tenants":
         asyncio.run(_list_tenants())
-    elif args.cmd == "enable-module":
-        asyncio.run(_enable_module(args.tenant_id, args.module))
-    elif args.cmd == "seed":
-        asyncio.run(_seed(args.tenant_id))
     elif args.cmd == "add-admin":
         asyncio.run(_add_admin(args.tenant_id, args.telegram_id))
     elif args.cmd == "setup-donate":

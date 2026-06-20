@@ -1,4 +1,4 @@
-"""Общий модуль: /start, главное меню (reply), навигация."""
+"""Общий модуль: /start, главное меню (reply-кнопки сумм доната)."""
 
 from __future__ import annotations
 
@@ -6,30 +6,21 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from cloud5.core.menu import (
-    donate_amount_for_label,
-    main_reply_menu,
-    module_for_label,
-)
+from cloud5.core.menu import donate_amount_for_label, main_reply_menu
 from cloud5.core.registry import TenantInfo
-from cloud5.modules import ai_assistant, booking, donate, shop, support
+from cloud5.modules import donate
 
 router = Router(name="common")
 
 
-async def _is_menu_label(
+async def _is_donate_button(
     message: Message, tenant: TenantInfo | None = None
 ) -> bool:
-    """Фильтр: текст совпадает с подписью одной из кнопок меню тенанта."""
+    """Фильтр: текст совпал с одной из кнопок-сумм доната."""
     if tenant is None or not message.text:
         return False
-    if "donate" in tenant.enabled_modules and (
-        donate_amount_for_label(tenant, message.text) is not None
-    ):
-        return True
-    return module_for_label(tenant, message.text) is not None
+    return donate_amount_for_label(tenant, message.text) is not None
 
 
 def _greeting(tenant: TenantInfo) -> str:
@@ -37,8 +28,8 @@ def _greeting(tenant: TenantInfo) -> str:
     if custom:
         return custom
     return (
-        f"👋 Здравствуйте! Это бот «{tenant.title}».\n\n"
-        "Выберите, что вас интересует:"
+        f"👋 Привет! Это бот «{tenant.title}».\n\n"
+        "Поддержи проект звёздами — выбери сумму ниже 👇"
     )
 
 
@@ -51,39 +42,19 @@ async def cmd_start(message: Message, tenant: TenantInfo, state: FSMContext) -> 
 @router.message(Command("menu"))
 async def cmd_menu(message: Message, tenant: TenantInfo, state: FSMContext) -> None:
     await state.clear()
-    await message.answer("Главное меню 👇", reply_markup=main_reply_menu(tenant))
+    await message.answer("Выбери сумму доната 👇", reply_markup=main_reply_menu(tenant))
 
 
-@router.message(_is_menu_label)
-async def on_menu_text(
-    message: Message,
-    tenant: TenantInfo,
-    session: AsyncSession,
-    state: FSMContext,
+@router.message(_is_donate_button)
+async def on_donate_button(
+    message: Message, tenant: TenantInfo, state: FSMContext
 ) -> None:
-    """Нажатие кнопки reply-меню — открыть соответствующий раздел."""
-    text = message.text or ""
-    # донат: несколько кнопок с разными суммами
-    if "donate" in tenant.enabled_modules:
-        amount = donate_amount_for_label(tenant, text)
-        if amount is not None:
-            await state.clear()
-            await donate.donate_start(message, tenant, amount)
-            return
-    module = module_for_label(tenant, text)
-    if module is None:
+    """Нажата кнопка-сумма — выставить счёт на эту сумму."""
+    amount = donate_amount_for_label(tenant, message.text or "")
+    if amount is None:
         return
     await state.clear()
-    if module == "shop":
-        await shop.catalog(message, tenant, session)
-    elif module == "booking":
-        await booking.services(message, tenant, session)
-    elif module == "support":
-        await support.support_new(message, state)
-    elif module == "ai_assistant":
-        await ai_assistant.ai_start(message, state)
-    elif module == "donate":
-        await donate.donate_start(message, tenant)
+    await donate.donate_start(message, tenant, amount)
 
 
 @router.callback_query(F.data == "menu:home")
@@ -91,7 +62,7 @@ async def cb_home(query: CallbackQuery, tenant: TenantInfo, state: FSMContext) -
     await state.clear()
     if isinstance(query.message, Message):
         try:
-            await query.message.edit_text("Главное меню 👇")
+            await query.message.edit_text("Выбери сумму доната 👇")
         except Exception:  # noqa: BLE001
             pass
     await query.answer()
@@ -100,8 +71,7 @@ async def cb_home(query: CallbackQuery, tenant: TenantInfo, state: FSMContext) -
 @router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
     await message.answer(
-        "Доступные команды:\n"
-        "/start — начать\n"
-        "/menu — главное меню\n"
-        "/help — помощь"
+        "Команды:\n"
+        "/start — показать кнопки доната\n"
+        "/menu — меню"
     )

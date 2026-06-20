@@ -3,31 +3,22 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cloud5"
-version = "0.1.0"
-description = "Cloud-5 — multi-tenant Telegram business bots platform"
+name = "cloud5-donate-bot"
+version = "1.0.0"
+description = "Telegram донат-бот на звёздах с Доской почёта"
 requires-python = ">=3.11"
 dependencies = [
     "aiogram>=3.4,<4",
     "sqlalchemy[asyncio]>=2.0",
-    "alembic>=1.13",
+    "aiosqlite>=0.20",
     "redis>=5.0",
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
-    "anthropic>=0.40",
-    "fastapi>=0.110",
-    "uvicorn[standard]>=0.29",
     "structlog>=24.1",
-    "python-dateutil>=2.9",
-    "aiosqlite>=0.20",
 ]
 
 [project.optional-dependencies]
-# Драйвер PostgreSQL (для сервера/продакшена; на телефоне не нужен — там SQLite)
-postgres = [
-    "asyncpg>=0.29",
-]
-# Генерация картинок-карточек донатеров. На телефоне: pkg install python-pillow
+# Картинки-карточки донатеров. На телефоне ставится: pkg install python-pillow
 images = [
     "pillow>=10.0",
 ]
