@@ -17,7 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cloud5.core.filters import IsAdmin
-from cloud5.core.menu import center_label
+from cloud5.core.menu import center_label, donate_amounts
 from cloud5.core.registry import TenantInfo
 from cloud5.core.tenant_settings import patch_module_settings
 from cloud5.db.models import (
@@ -429,17 +429,18 @@ async def greeting_save(
 @router.callback_query(F.data == "adm:donate")
 async def donate_menu(query: CallbackQuery, tenant: TenantInfo) -> None:
     cfg = tenant.module_settings("donate")
-    amount = cfg.get("amount_xtr", 2)
+    amounts = donate_amounts(tenant)
+    pretty = ", ".join(f"{a}⭐" for a in amounts)
     wall = cfg.get("wall_chat_id")
     wall_txt = f"чат {wall}" if wall else "не задана"
     b = InlineKeyboardBuilder()
-    b.button(text=f"💵 Сумма доната: {amount} ⭐", callback_data="adm:donate:amount")
+    b.button(text="💵 Изменить суммы кнопок", callback_data="adm:donate:amount")
     b.button(text="⬅️ Назад", callback_data="adm:home")
     b.adjust(1)
     await _edit(
         query,
         "💝 <b>Донат</b>\n"
-        f"Сумма одной кнопки: <b>{amount} ⭐</b>\n"
+        f"Кнопки сумм: <b>{pretty}</b>\n"
         f"Доска почёта: <b>{wall_txt}</b>\n\n"
         "Чтобы привязать Доску почёта — добавь бота в свою группу/канал "
         "администратором и отправь там команду <code>/setwall</code>.",
@@ -450,23 +451,32 @@ async def donate_menu(query: CallbackQuery, tenant: TenantInfo) -> None:
 @router.callback_query(F.data == "adm:donate:amount")
 async def donate_amount_start(query: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(SetDonate.amount)
-    await _edit(query, "Введите сумму доната в звёздах (целое число, напр. 2):", _cancel_kb())
+    await _edit(
+        query,
+        "Введите суммы кнопок в звёздах через запятую,\n"
+        "например: <code>100,200,300,400,1000</code>",
+        _cancel_kb(),
+    )
 
 
 @router.message(SetDonate.amount, F.text)
 async def donate_amount_save(
     message: Message, tenant: TenantInfo, session: AsyncSession, state: FSMContext
 ) -> None:
-    try:
-        amount = int(message.text.strip())
-        assert amount >= 1
-    except (ValueError, AssertionError):
-        await message.answer("Введите целое число ≥ 1, например 2:")
+    amounts = []
+    for part in (message.text or "").replace(" ", "").split(","):
+        if part.isdigit() and int(part) >= 1:
+            amounts.append(int(part))
+    if not amounts:
+        await message.answer("Введите числа через запятую, например 100,200,1000:")
         return
     await state.clear()
-    await patch_module_settings(session, tenant, "donate", {"amount_xtr": amount})
+    await patch_module_settings(
+        session, tenant, "donate", {"amounts": amounts, "amount_xtr": amounts[0]}
+    )
+    pretty = ", ".join(f"{a}⭐" for a in amounts)
     await message.answer(
-        f"✅ Сумма доната: {amount} ⭐.",
+        f"✅ Суммы кнопок: {pretty}.\nОтправьте /start, чтобы обновить меню.",
         reply_markup=_back_kb("adm:donate").as_markup(),
     )
 

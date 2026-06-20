@@ -8,7 +8,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cloud5.core.menu import main_reply_menu, module_for_label
+from cloud5.core.menu import (
+    donate_amount_for_label,
+    main_reply_menu,
+    module_for_label,
+)
 from cloud5.core.registry import TenantInfo
 from cloud5.modules import ai_assistant, booking, donate, shop, support
 
@@ -21,6 +25,10 @@ async def _is_menu_label(
     """Фильтр: текст совпадает с подписью одной из кнопок меню тенанта."""
     if tenant is None or not message.text:
         return False
+    if "donate" in tenant.enabled_modules and (
+        donate_amount_for_label(tenant, message.text) is not None
+    ):
+        return True
     return module_for_label(tenant, message.text) is not None
 
 
@@ -54,7 +62,15 @@ async def on_menu_text(
     state: FSMContext,
 ) -> None:
     """Нажатие кнопки reply-меню — открыть соответствующий раздел."""
-    module = module_for_label(tenant, message.text or "")
+    text = message.text or ""
+    # донат: несколько кнопок с разными суммами
+    if "donate" in tenant.enabled_modules:
+        amount = donate_amount_for_label(tenant, text)
+        if amount is not None:
+            await state.clear()
+            await donate.donate_start(message, tenant, amount)
+            return
+    module = module_for_label(tenant, text)
     if module is None:
         return
     await state.clear()

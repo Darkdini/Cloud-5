@@ -36,22 +36,59 @@ def _plural_star(n: int) -> str:
     return "звёзд"
 
 
+DEFAULT_DONATE_AMOUNTS = [100, 200, 300, 400, 1000]
+
+
+def donate_amounts(tenant: TenantInfo) -> list[int]:
+    """Список сумм доната (в звёздах). Несколько кнопок на выбор."""
+    cfg = tenant.module_settings("donate")
+    raw = cfg.get("amounts")
+    if raw:
+        out = []
+        for a in raw:
+            try:
+                v = int(a)
+            except (TypeError, ValueError):
+                continue
+            if v >= 1:
+                out.append(v)
+        if out:
+            return out
+    # обратная совместимость: одиночная сумма
+    try:
+        return [max(1, int(cfg.get("amount_xtr", 100)))]
+    except (TypeError, ValueError):
+        return [100]
+
+
+def donate_label(n: int, top: bool = False) -> str:
+    """Подпись кнопки доната на сумму n. ``top`` — отметить как топовую."""
+    if top:
+        return f"🔥 {n} {_plural_star(n)} (ТОП)"
+    return f"⭐ {n} {_plural_star(n)}"
+
+
+def donate_amount_for_label(tenant: TenantInfo, text: str) -> int | None:
+    """Вернуть сумму, если текст совпал с одной из донат-кнопок."""
+    amounts = donate_amounts(tenant)
+    top = max(amounts) if amounts else None
+    for n in amounts:
+        if donate_label(n, n == top) == text:
+            return n
+    return None
+
+
 def menu_label(module: str, tenant: TenantInfo) -> str:
-    """Подпись кнопки меню. Для доната — динамическая с суммой звёзд."""
-    if module == "donate":
-        cfg = tenant.module_settings("donate")
-        try:
-            amount = max(1, int(cfg.get("amount_xtr", 2)))
-        except (TypeError, ValueError):
-            amount = 2
-        return f"⭐ Подарить {amount} {_plural_star(amount)}"
+    """Подпись кнопки меню (для модулей с одной кнопкой)."""
     item = MENU_ITEMS.get(module)
     return item[0] if item else module
 
 
 def module_for_label(tenant: TenantInfo, text: str) -> str | None:
-    """Найти модуль по тексту нажатой reply-кнопки (учёт динамических подписей)."""
+    """Найти модуль по тексту нажатой reply-кнопки (кроме доната — он особый)."""
     for module in tenant.enabled_modules:
+        if module == "donate":
+            continue
         if module in MENU_ITEMS and menu_label(module, tenant) == text:
             return module
     return None
@@ -61,7 +98,12 @@ def main_reply_menu(tenant: TenantInfo) -> ReplyKeyboardMarkup:
     """Постоянное reply-меню снизу экрана — кнопки во всю ширину."""
     builder = ReplyKeyboardBuilder()
     for module in tenant.enabled_modules:
-        if module in MENU_ITEMS:
+        if module == "donate":
+            amounts = donate_amounts(tenant)
+            top = max(amounts) if amounts else None
+            for n in amounts:
+                builder.add(KeyboardButton(text=donate_label(n, n == top)))
+        elif module in MENU_ITEMS:
             builder.add(KeyboardButton(text=menu_label(module, tenant)))
     builder.adjust(1)
     return builder.as_markup(resize_keyboard=True, is_persistent=True)

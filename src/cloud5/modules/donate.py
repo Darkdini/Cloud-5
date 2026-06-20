@@ -58,8 +58,12 @@ def _mention(user: BotUser) -> str:
 
 
 @router.callback_query(F.data == "donate:start")
-async def donate_start(query: CallbackQuery | Message, tenant: TenantInfo) -> None:
-    amount = _amount(tenant)
+async def donate_start(
+    query: CallbackQuery | Message,
+    tenant: TenantInfo,
+    amount: int | None = None,
+) -> None:
+    amount = amount or _amount(tenant)
     target = query.message if isinstance(query, CallbackQuery) else query
     if not isinstance(target, Message):
         if isinstance(query, CallbackQuery):

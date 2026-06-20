@@ -120,8 +120,9 @@ async def _add_admin(tenant_id: int, telegram_id: int) -> None:
         )
 
 
-async def _setup_donate(tenant_id: int, amount: int) -> None:
-    """Превратить бота в донат-бот: одна кнопка «Подарить N звёзд»."""
+async def _setup_donate(tenant_id: int, amounts: list[int]) -> None:
+    """Превратить бота в донат-бот: кнопки на выбор сумм в звёздах."""
+    amounts = [a for a in amounts if a >= 1] or [100]
     async with session_scope() as session:
         tenant = await session.get(Tenant, tenant_id)
         if tenant is None:
@@ -130,12 +131,14 @@ async def _setup_donate(tenant_id: int, amount: int) -> None:
         tenant.enabled_modules = ["donate"]
         settings = dict(tenant.settings or {})
         donate_cfg = dict(settings.get("donate", {}))
-        donate_cfg["amount_xtr"] = amount
+        donate_cfg["amounts"] = amounts
+        donate_cfg["amount_xtr"] = amounts[0]
         settings["donate"] = donate_cfg
         tenant.settings = settings
+        pretty = ", ".join(f"{a}⭐" for a in amounts)
         print(
-            f"✅ Бот #{tenant_id} переведён в режим доната: "
-            f"одна кнопка «Подарить {amount} ⭐».\n"
+            f"✅ Бот #{tenant_id} переведён в режим доната.\n"
+            f"Кнопки сумм: {pretty}\n"
             "Перезапусти бота и в группе-доске отправь /setwall."
         )
 
@@ -245,9 +248,13 @@ def main() -> None:
     p_adm.add_argument("--tenant-id", type=int, required=True)
     p_adm.add_argument("--telegram-id", type=int, required=True)
 
-    p_don = sub.add_parser("setup-donate", help="режим доната: одна кнопка «Подарить N ⭐»")
+    p_don = sub.add_parser("setup-donate", help="режим доната: кнопки сумм в звёздах")
     p_don.add_argument("--tenant-id", type=int, required=True)
-    p_don.add_argument("--amount", type=int, default=100)
+    p_don.add_argument(
+        "--amounts",
+        default="100,200,300,400,1000",
+        help="суммы через запятую, напр. 100,200,300,400,1000",
+    )
 
     args = parser.parse_args()
     init_engine()
@@ -267,7 +274,8 @@ def main() -> None:
     elif args.cmd == "add-admin":
         asyncio.run(_add_admin(args.tenant_id, args.telegram_id))
     elif args.cmd == "setup-donate":
-        asyncio.run(_setup_donate(args.tenant_id, args.amount))
+        amounts = [int(x) for x in args.amounts.split(",") if x.strip().isdigit()]
+        asyncio.run(_setup_donate(args.tenant_id, amounts))
 
 
 if __name__ == "__main__":
