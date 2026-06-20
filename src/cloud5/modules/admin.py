@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cloud5.core.filters import IsAdmin
+from cloud5.core.menu import center_label
 from cloud5.core.registry import TenantInfo
 from cloud5.core.tenant_settings import patch_module_settings
 from cloud5.db.models import (
@@ -69,11 +70,16 @@ class SetGreeting(StatesGroup):
 
 def _home_kb() -> InlineKeyboardBuilder:
     b = InlineKeyboardBuilder()
-    b.button(text="🛒 Товары", callback_data="adm:products")
-    b.button(text="🗂 Категории", callback_data="adm:cats")
-    b.button(text="💳 Оплата", callback_data="adm:pay")
-    b.button(text="✍️ Приветствие", callback_data="adm:greeting")
-    b.button(text="📊 Статистика", callback_data="adm:stats")
+    labels = [
+        ("🛒 Товары", "adm:products"),
+        ("🗂 Категории", "adm:cats"),
+        ("💳 Оплата", "adm:pay"),
+        ("✍️ Приветствие", "adm:greeting"),
+        ("📊 Статистика", "adm:stats"),
+    ]
+    width = max(len(t) for t, _ in labels)
+    for text, data in labels:
+        b.button(text=center_label(text, width), callback_data=data)
     b.adjust(1)
     return b
 

@@ -16,13 +16,28 @@ MENU_ITEMS: dict[str, tuple[str, str]] = {
 }
 
 
+def center_label(text: str, width: int) -> str:
+    """Выровнять подпись кнопки по центру, добив пробелами до ``width``.
+
+    Telegram ужимает inline-кнопки по ширине текста и прижимает к левому краю.
+    Одинаковая ширина подписей делает колонку ровной, а текст — по центру.
+    """
+    return text.center(max(width, len(text)))
+
+
 def main_menu(tenant: TenantInfo) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    for module in tenant.enabled_modules:
-        item = MENU_ITEMS.get(module)
-        if item:
-            text, data = item
-            builder.add(InlineKeyboardButton(text=text, callback_data=data))
+    items = [
+        MENU_ITEMS[m] for m in tenant.enabled_modules if m in MENU_ITEMS
+    ]
+    width = max((len(text) for text, _ in items), default=0)
+    width = max(width, 18)
+    for text, data in items:
+        builder.add(
+            InlineKeyboardButton(
+                text=center_label(text, width), callback_data=data
+            )
+        )
     builder.adjust(1)
     return builder.as_markup()
 
