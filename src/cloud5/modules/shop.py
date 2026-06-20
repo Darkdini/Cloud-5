@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from cloud5.core.filters import ModuleEnabled
 from cloud5.core.logging import get_logger
-from cloud5.core.menu import back_to_menu_button
+from cloud5.core.menu import back_to_menu_button, respond
 from cloud5.core.registry import TenantInfo
 from cloud5.db.models import (
     BotUser,
@@ -91,7 +91,7 @@ def _price_view(tenant: TenantInfo, product: Product) -> str:
 
 @router.callback_query(F.data == "shop:catalog")
 async def catalog(
-    query: CallbackQuery, tenant: TenantInfo, session: AsyncSession
+    query: CallbackQuery | Message, tenant: TenantInfo, session: AsyncSession
 ) -> None:
     categories = (
         await session.execute(
@@ -120,7 +120,7 @@ async def catalog(
     builder.button(text="🧺 Корзина", callback_data="shop:cart")
     builder.add(back_to_menu_button())
     builder.adjust(1)
-    await _edit(query, text, builder)
+    await respond(query, text, builder.as_markup())
 
 
 @router.callback_query(F.data.startswith("shop:cat:"))

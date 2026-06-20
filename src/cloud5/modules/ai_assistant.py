@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cloud5.core.filters import ModuleEnabled
-from cloud5.core.menu import back_to_menu_button
+from cloud5.core.menu import back_to_menu_button, respond
 from cloud5.core.registry import TenantInfo
 from cloud5.db.models import BotUser, ChatMessage, ChatRole, KnowledgeDoc
 from cloud5.services import ai
@@ -62,14 +62,13 @@ async def _load_knowledge(session: AsyncSession, tenant_id: int) -> list[str]:
 
 
 @router.callback_query(F.data == "ai:start")
-async def ai_start(query: CallbackQuery, state: FSMContext) -> None:
+async def ai_start(query: CallbackQuery | Message, state: FSMContext) -> None:
     await state.set_state(AIChat.chatting)
-    if isinstance(query.message, Message):
-        await query.message.edit_text(
-            "🧠 Я на связи! Напишите свой вопрос — отвечу сразу.",
-            reply_markup=_exit_kb(),
-        )
-    await query.answer()
+    await respond(
+        query,
+        "🧠 Я на связи! Напишите свой вопрос — отвечу сразу.",
+        _exit_kb(),
+    )
 
 
 @router.message(AIChat.chatting, F.text)

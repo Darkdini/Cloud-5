@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from cloud5.core.filters import ModuleEnabled
-from cloud5.core.menu import back_to_menu_button
+from cloud5.core.menu import back_to_menu_button, respond
 from cloud5.core.registry import TenantInfo
 from cloud5.db.models import Booking, BookingStatus, BotUser, Service
 from cloud5.services.payments import format_price
@@ -29,7 +29,7 @@ RU_WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
 
 @router.callback_query(F.data == "booking:services")
 async def services(
-    query: CallbackQuery, tenant: TenantInfo, session: AsyncSession
+    query: CallbackQuery | Message, tenant: TenantInfo, session: AsyncSession
 ) -> None:
     rows = (
         await session.execute(
@@ -48,7 +48,7 @@ async def services(
     builder.add(back_to_menu_button())
     builder.adjust(1)
     text = "📅 Выберите услугу:" if rows else "Услуги пока не добавлены."
-    await _edit(query, text, builder)
+    await respond(query, text, builder.as_markup())
 
 
 @router.callback_query(F.data.startswith("booking:svc:"))

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from cloud5.core.filters import ModuleEnabled
 from cloud5.core.logging import get_logger
-from cloud5.core.menu import back_to_menu_button
+from cloud5.core.menu import back_to_menu_button, respond
 from cloud5.core.registry import TenantInfo
 from cloud5.db.models import BotUser, Ticket, TicketMessage, TicketStatus
 
@@ -27,17 +27,16 @@ class SupportFlow(StatesGroup):
 
 
 @router.callback_query(F.data == "support:new")
-async def support_new(query: CallbackQuery, state: FSMContext) -> None:
+async def support_new(query: CallbackQuery | Message, state: FSMContext) -> None:
     await state.set_state(SupportFlow.describing)
     builder = InlineKeyboardBuilder()
     builder.add(back_to_menu_button())
-    if isinstance(query.message, Message):
-        await query.message.edit_text(
-            "🎫 Опишите ваш вопрос или проблему одним сообщением — "
-            "оператор скоро ответит.",
-            reply_markup=builder.as_markup(),
-        )
-    await query.answer()
+    await respond(
+        query,
+        "🎫 Опишите ваш вопрос или проблему одним сообщением — "
+        "оператор скоро ответит.",
+        builder.as_markup(),
+    )
 
 
 @router.message(SupportFlow.describing, F.text)

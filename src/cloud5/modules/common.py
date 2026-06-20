@@ -1,4 +1,4 @@
-"""Общий модуль: /start, главное меню, навигация."""
+"""Общий модуль: /start, главное меню (reply), навигация."""
 
 from __future__ import annotations
 
@@ -6,11 +6,15 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from cloud5.core.menu import main_menu
+from cloud5.core.menu import LABEL_TO_MODULE, main_reply_menu
 from cloud5.core.registry import TenantInfo
+from cloud5.modules import ai_assistant, booking, donate, shop, support
 
 router = Router(name="common")
+
+MENU_LABELS = set(LABEL_TO_MODULE)
 
 
 def _greeting(tenant: TenantInfo) -> str:
@@ -26,22 +30,48 @@ def _greeting(tenant: TenantInfo) -> str:
 @router.message(Command("start"))
 async def cmd_start(message: Message, tenant: TenantInfo, state: FSMContext) -> None:
     await state.clear()
-    await message.answer(_greeting(tenant), reply_markup=main_menu(tenant))
+    await message.answer(_greeting(tenant), reply_markup=main_reply_menu(tenant))
 
 
 @router.message(Command("menu"))
 async def cmd_menu(message: Message, tenant: TenantInfo, state: FSMContext) -> None:
     await state.clear()
-    await message.answer("Главное меню:", reply_markup=main_menu(tenant))
+    await message.answer("Главное меню 👇", reply_markup=main_reply_menu(tenant))
+
+
+@router.message(F.text.in_(MENU_LABELS))
+async def on_menu_text(
+    message: Message,
+    tenant: TenantInfo,
+    session: AsyncSession,
+    state: FSMContext,
+) -> None:
+    """Нажатие кнопки reply-меню — открыть соответствующий раздел."""
+    module = LABEL_TO_MODULE.get(message.text or "")
+    if module is None or module not in tenant.enabled_modules:
+        await message.answer("Этот раздел сейчас недоступен.")
+        return
+    await state.clear()
+    if module == "shop":
+        await shop.catalog(message, tenant, session)
+    elif module == "booking":
+        await booking.services(message, tenant, session)
+    elif module == "support":
+        await support.support_new(message, state)
+    elif module == "ai_assistant":
+        await ai_assistant.ai_start(message, state)
+    elif module == "donate":
+        await donate.donate_start(message, tenant)
 
 
 @router.callback_query(F.data == "menu:home")
 async def cb_home(query: CallbackQuery, tenant: TenantInfo, state: FSMContext) -> None:
     await state.clear()
     if isinstance(query.message, Message):
-        await query.message.edit_text(
-            "Главное меню:", reply_markup=main_menu(tenant)
-        )
+        try:
+            await query.message.edit_text("Главное меню 👇")
+        except Exception:  # noqa: BLE001
+            pass
     await query.answer()
 
 

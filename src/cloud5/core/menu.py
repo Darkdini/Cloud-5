@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import (
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    KeyboardButton,
+    Message,
+    ReplyKeyboardMarkup,
+)
+from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 from cloud5.core.registry import TenantInfo
 
@@ -15,6 +22,33 @@ MENU_ITEMS: dict[str, tuple[str, str]] = {
     "support": ("🎫 Поддержка", "support:new"),
     "donate": ("⭐ Поддержать", "donate:start"),
 }
+
+# обратная карта: надпись reply-кнопки -> модуль
+LABEL_TO_MODULE: dict[str, str] = {text: m for m, (text, _) in MENU_ITEMS.items()}
+
+
+def main_reply_menu(tenant: TenantInfo) -> ReplyKeyboardMarkup:
+    """Постоянное reply-меню снизу экрана — кнопки во всю ширину."""
+    builder = ReplyKeyboardBuilder()
+    for module in tenant.enabled_modules:
+        item = MENU_ITEMS.get(module)
+        if item:
+            builder.add(KeyboardButton(text=item[0]))
+    builder.adjust(1)
+    return builder.as_markup(resize_keyboard=True, is_persistent=True)
+
+
+async def respond(event: Message | CallbackQuery, text: str, markup=None) -> None:
+    """Показать экран: для нажатия inline — редактируем, для текста — новое сообщение."""
+    if isinstance(event, CallbackQuery):
+        if isinstance(event.message, Message):
+            try:
+                await event.message.edit_text(text, reply_markup=markup)
+            except Exception:  # noqa: BLE001
+                await event.message.answer(text, reply_markup=markup)
+        await event.answer()
+    else:
+        await event.answer(text, reply_markup=markup)
 
 
 # Неразрывный пробел: обычные пробелы по краям Telegram обрезает, этот — нет.

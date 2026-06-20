@@ -56,12 +56,14 @@ def _mention(user: BotUser) -> str:
 
 
 @router.callback_query(F.data == "donate:start")
-async def donate_start(query: CallbackQuery, tenant: TenantInfo) -> None:
+async def donate_start(query: CallbackQuery | Message, tenant: TenantInfo) -> None:
     amount = _amount(tenant)
-    if not isinstance(query.message, Message):
-        await query.answer()
+    target = query.message if isinstance(query, CallbackQuery) else query
+    if not isinstance(target, Message):
+        if isinstance(query, CallbackQuery):
+            await query.answer()
         return
-    await query.message.answer_invoice(
+    await target.answer_invoice(
         title="Поддержать проект",
         description=f"Подарить {amount} ⭐ автору. Спасибо за поддержку!",
         payload=f"donate:{amount}",
@@ -69,7 +71,8 @@ async def donate_start(query: CallbackQuery, tenant: TenantInfo) -> None:
         currency="XTR",
         prices=[LabeledPrice(label=f"Донат {amount} ⭐", amount=amount)],
     )
-    await query.answer()
+    if isinstance(query, CallbackQuery):
+        await query.answer()
 
 
 @router.callback_query(F.data == "donate:wall")
