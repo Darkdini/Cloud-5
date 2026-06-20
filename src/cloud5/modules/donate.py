@@ -95,7 +95,9 @@ async def pre_checkout(pre_checkout_query: PreCheckoutQuery) -> None:
 
 
 @router.message(
-    F.successful_payment.func(lambda p: p.invoice_payload.startswith("donate:"))
+    F.successful_payment.func(
+        lambda p: p is not None and p.invoice_payload.startswith("donate:")
+    )
 )
 async def on_donated(
     message: Message, tenant: TenantInfo, user: BotUser, session: AsyncSession
