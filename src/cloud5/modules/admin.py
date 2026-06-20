@@ -77,7 +77,7 @@ def _home_kb() -> InlineKeyboardBuilder:
         ("✍️ Приветствие", "adm:greeting"),
         ("📊 Статистика", "adm:stats"),
     ]
-    width = max(len(t) for t, _ in labels)
+    width = max(max(len(t) for t, _ in labels), 22)
     for text, data in labels:
         b.button(text=center_label(text, width), callback_data=data)
     b.adjust(1)
