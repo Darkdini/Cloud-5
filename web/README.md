@@ -8,16 +8,21 @@ Prisma · кастомная JWT-авторизация (jose + bcrypt).
 
 ## Локальный запуск
 
+Нужна база PostgreSQL (бесплатно — на [neon.tech](https://neon.tech)).
+
 ```bash
 cd web
 npm install
-cp .env.example .env          # DATABASE_URL=file:./dev.db уже подойдёт
+cp .env.example .env          # впиши DATABASE_URL (Postgres) и AUTH_SECRET
 npx prisma db push            # создать таблицы
 npm run db:seed               # демо-разделы и товары
 npm run dev                   # http://localhost:3000
 ```
 
 Демо-аккаунт: **demo@cloud5.app / demo123** (или зарегистрируй новый).
+
+> ⚠️ На телефоне (Termux) сайт не запустится: у Prisma нет движка под Android.
+> Сайт рассчитан на Vercel + Postgres (см. ниже). На телефоне держим только бота.
 
 ## Структура
 
@@ -38,20 +43,30 @@ prisma/
   seed.ts             # демо-данные
 ```
 
-## Деплой на Vercel
+## Деплой на Vercel (пошагово)
 
-1. Запушь репозиторий в GitHub (папка `web/` как корень проекта Vercel,
-   либо настрой Root Directory = `web`).
-2. В `prisma/schema.prisma` смени `provider = "sqlite"` на `"postgresql"`.
-3. Подключи Vercel Postgres / Neon и задай переменные окружения:
-   - `DATABASE_URL` — строка подключения Postgres
-   - `AUTH_SECRET` — длинная случайная строка
-4. Команда сборки уже включает `prisma generate` (см. `package.json`).
-   После первого деплоя выполни миграцию схемы: `npx prisma db push`
-   (локально на прод-БД) или добавь шаг в пайплайн.
+**1. База данных (Neon, бесплатно):**
+- Зайди на [neon.tech](https://neon.tech) → войди через GitHub → создай проект.
+- Скопируй **Connection string** (вида `postgresql://...:...@...neon.tech/...?sslmode=require`).
 
-> Локально используется SQLite — на Vercel serverless файловая система
-> эфемерна, поэтому для продакшена нужен внешний Postgres.
+**2. Проект на Vercel:**
+- [vercel.com](https://vercel.com) → войди через GitHub → **Add New → Project**.
+- Выбери репозиторий `Darkdini/cloud-5`.
+- **Root Directory** → нажми Edit и укажи **`web`**.
+- Framework определится как Next.js автоматически.
+
+**3. Переменные окружения** (Environment Variables в настройках проекта):
+- `DATABASE_URL` = строка из Neon
+- `AUTH_SECRET` = любая длинная случайная строка
+
+**4. Deploy.**
+Сборка запустит скрипт `vercel-build`: сгенерирует Prisma-клиент, **создаст
+таблицы** в твоей базе, **зальёт демо-данные** и соберёт сайт. После деплоя
+получишь адрес вида `cloud5.vercel.app`.
+
+> Схема и сид применяются автоматически при каждом деплое (операции
+> идемпотентные — данные не дублируются). Когда добавишь реальные товары,
+> можно убрать `tsx prisma/seed.ts` из `vercel-build`, чтобы не пересоздавать демо.
 
 ## Дальше (roadmap)
 

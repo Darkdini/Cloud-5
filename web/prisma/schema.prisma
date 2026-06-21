@@ -1,12 +1,12 @@
 // Prisma schema для маркетплейса Cloud-5.
-// Локально — SQLite. Для Vercel смените provider на "postgresql" и DATABASE_URL.
+// Прод — PostgreSQL (Neon/Vercel Postgres). DATABASE_URL задаётся в окружении.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
