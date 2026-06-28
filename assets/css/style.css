@@ -399,12 +399,10 @@ h1, h2, .hero__eyebrow {
   height: 130px;
   margin: -65px 0 0 -65px;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, #d8f0ff 0%, #7fc4ec 10%, #3d8bbd 24%, transparent 24%),
-    radial-gradient(circle at 70% 60%, #4c8a52 0%, #3d7444 14%, transparent 40%),
-    radial-gradient(circle at 30% 70%, #5a9a5e 0%, transparent 30%),
-    radial-gradient(circle at 60% 25%, #c9bb8c 0%, transparent 22%),
-    radial-gradient(circle at 50% 50%, #2f6f97 0%, #1c4a68 55%, #0a2538 100%);
+  background-image: url('../img/earth.jpg');
+  background-size: cover;
+  background-position: 62% 38%;
+  box-shadow: inset -14px -10px 30px rgba(0, 0, 0, 0.75), inset 8px 6px 18px rgba(180, 220, 255, 0.25);
   animation: cineEarthZoom 7.8s cubic-bezier(0.64, 0, 0.9, 0.96) forwards;
 }
 
@@ -415,6 +413,14 @@ h1, h2, .hero__eyebrow {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(127, 196, 236, 0.45) 0%, rgba(79, 168, 216, 0.18) 45%, transparent 72%);
   z-index: -1;
+}
+
+.cine-earth::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, transparent 0%, transparent 38%, rgba(4, 10, 20, 0.55) 78%, rgba(2, 6, 14, 0.85) 100%);
 }
 
 .cine-earth__clouds {
