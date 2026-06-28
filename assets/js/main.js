@@ -10,6 +10,28 @@
   const lines = Array.from(cineIntro.querySelectorAll('.cine-line, .cine-title'));
   const skipBtn = document.getElementById('cineSkip');
   const canvas = document.getElementById('cineParticles');
+  const earthPhase = document.getElementById('cineEarthPhase');
+  const geoLines = Array.from(cineIntro.querySelectorAll('.geo-line'));
+  const starsContainer = document.getElementById('cineStars');
+
+  const EARTH_MS = 7800;
+
+  if (starsContainer) {
+    const starsHtml = Array.from({ length: 90 }, () => {
+      const top = Math.random() * 100;
+      const left = Math.random() * 100;
+      const size = Math.random() * 1.8 + 0.6;
+      const delay = Math.random() * 2.6;
+      return `<span style="top:${top}%;left:${left}%;width:${size}px;height:${size}px;animation-delay:${delay}s"></span>`;
+    }).join('');
+    starsContainer.innerHTML = starsHtml;
+  }
+
+  function showGeo(n) {
+    geoLines.forEach((el) => {
+      el.classList.toggle('is-active', el.dataset.geo === String(n));
+    });
+  }
 
   const slidePhotos = [
     'photos/full/photo-001.jpg',
@@ -49,12 +71,13 @@
   function finishIntro() {
     timers.forEach(clearTimeout);
     cineIntro.classList.add('is-leaving');
+    earthPhase.classList.add('is-leaving');
     document.body.style.overflow = '';
     setTimeout(() => cineIntro.classList.add('is-done'), 1300);
   }
 
-  // Particle field — warm drifting embers
-  let particlesRunning = true;
+  // Particle field — warm drifting embers (starts once we "arrive")
+  let particlesRunning = false;
   if (canvas) {
     const ctx = canvas.getContext('2d');
     let w, h;
@@ -90,23 +113,31 @@
       });
       requestAnimationFrame(tick);
     }
-    tick();
+    setTimer(() => { particlesRunning = true; tick(); }, EARTH_MS);
   }
 
   skipBtn.addEventListener('click', finishIntro);
 
-  // Timeline
-  showLine(1);
-  setTimer(() => showSlide(slideIndex++), 200);
-  setTimer(() => showLine(2), 2200);
-  setTimer(() => showSlide(slideIndex++), 2400);
-  setTimer(() => showLine(3), 4400);
-  setTimer(() => showSlide(slideIndex++), 4800);
-  setTimer(() => showSlide(slideIndex++), 7200);
-  setTimer(() => showSlide(slideIndex++), 9600);
-  setTimer(() => showSlide(slideIndex++), 12000);
-  setTimer(finishIntro, 14200);
-  setTimer(() => { particlesRunning = false; }, 15600);
+  // Timeline — phase 1: zoom from Earth down to the house
+  setTimer(() => showGeo(1), 300);
+  setTimer(() => showGeo(2), 1900);
+  setTimer(() => showGeo(3), 3700);
+  setTimer(() => showGeo(4), 5700);
+  setTimer(() => showGeo(0), EARTH_MS - 1000);
+
+  // Timeline — phase 2: photo slideshow, offset to start after the zoom lands
+  setTimer(() => earthPhase.classList.add('is-leaving'), EARTH_MS);
+  setTimer(() => showLine(1), EARTH_MS);
+  setTimer(() => showSlide(slideIndex++), EARTH_MS + 200);
+  setTimer(() => showLine(2), EARTH_MS + 2200);
+  setTimer(() => showSlide(slideIndex++), EARTH_MS + 2400);
+  setTimer(() => showLine(3), EARTH_MS + 4400);
+  setTimer(() => showSlide(slideIndex++), EARTH_MS + 4800);
+  setTimer(() => showSlide(slideIndex++), EARTH_MS + 7200);
+  setTimer(() => showSlide(slideIndex++), EARTH_MS + 9600);
+  setTimer(() => showSlide(slideIndex++), EARTH_MS + 12000);
+  setTimer(finishIntro, EARTH_MS + 14200);
+  setTimer(() => { particlesRunning = false; }, EARTH_MS + 15600);
 })();
 
 (() => {
