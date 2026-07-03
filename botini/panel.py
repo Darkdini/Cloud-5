@@ -328,8 +328,8 @@ input:focus{outline:none;border-color:var(--cyan)}
   <label>API Secret</label>
   <input id="s" type="password" placeholder="секрет показывается на бирже один раз" autocomplete="off">
   <div class="row">
-    <div><label>Бюджет, USDT</label><input id="b" type="number" value="1000" min="50"></div>
-    <div><label>Сколько пар</label><input id="p" type="number" value="3" min="1" max="8"></div>
+    <div><label>Бюджет, USDT (1 USDT ≈ 90–100 ₽)</label><input id="b" type="number" value="15" min="10"></div>
+    <div><label>Сколько пар</label><input id="p" type="number" value="1" min="1" max="8"></div>
   </div>
   <label class="switch"><input id="tn" type="checkbox" checked> Testnet (виртуальные деньги — рекомендую)</label>
   <label class="switch"><input id="sk" type="checkbox"> Пропустить анализ (быстрый старт на дефолтных парах)</label>
