@@ -1,0 +1,9 @@
+# секреты и рантайм — не коммитим
+bot/.env
+.env
+run/
+data/
+*.log
+state*.json
+__pycache__/
+*.pyc
